@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+message Envelope {
+    Type type        = 1;
+    bytes ciphertext = 2;
+
+
+    enum Type {
+        UNKNOWN       = 0;
+        CIPHERTEXT    = 1;
+        KEY_EXCHANGE  = 2;
+        PREKEY_BUNDLE = 3;
+        RECEIPT       = 5;
+    }
+}
