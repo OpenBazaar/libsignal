@@ -1,4 +1,4 @@
-package signalratchet
+package libsignal
 
 import (
 	"bytes"

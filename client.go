@@ -1,4 +1,4 @@
-package signalratchet
+package libsignal
 
 import (
 	"github.com/janimo/textsecure/axolotl"
