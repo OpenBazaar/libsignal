@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	log "github.com/Sirupsen/logrus"
+	"math/rand"
 )
 
 // store implements the PreKeyStore, SignedPreKeyStore,
@@ -312,6 +313,29 @@ func (s *store) LoadSignedPreKeys() []axolotl.SignedPreKeyRecord {
 		return nil
 	}
 	return keys
+}
+
+func (s *store) LoadRandomPreKey() (axolotl.PreKeyRecord, error) {
+	keys := []axolotl.PreKeyRecord{}
+	err := filepath.Walk(s.preKeysDir, func(path string, fi os.FileInfo, err error) error {
+		if !fi.IsDir() {
+			_, fname := filepath.Split(path)
+			id, err := filenameToID(fname)
+			if err != nil {
+				return nil
+			}
+			key, _ := textSecureStore.LoadPreKey(uint32(id))
+			keys = append(keys, *key)
+
+		}
+		return nil
+
+	})
+	if err != nil {
+		return axolotl.PreKeyRecord{}, err
+	}
+	i := rand.Intn(len(keys))
+	return keys[i], nil
 }
 
 func (s *store) StorePreKey(id uint32, record *axolotl.PreKeyRecord) error {

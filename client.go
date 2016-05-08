@@ -65,40 +65,12 @@ func NewClient(datastorePath string, password string) (*Client, error) {
 	return c, nil
 }
 
-func makePreKeyBundle(pkr *preKeyResponse) (*axolotl.PreKeyBundle, error) {
-
-	if len(pkr.Devices) != 1 {
-		return nil, fmt.Errorf("no prekeys for contact")
-	}
-
-	d := pkr.Devices[0]
-
-	if d.PreKey == nil {
-		return nil, fmt.Errorf("no prekey for contact")
-	}
-	decPK, err := decodeKey(d.PreKey.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-	if d.SignedPreKey == nil {
-		return nil, fmt.Errorf("no signed prekey for contact")
-	}
-	decSPK, err := decodeKey(d.SignedPreKey.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-	decSig, err := decodeSignature(d.SignedPreKey.Signature)
-	if err != nil {
-		return nil, err
-	}
-	decIK, err := decodeKey(pkr.IdentityKey)
-	if err != nil {
-		return nil, err
-	}
+func MakePreKeyBundle(preKey axolotl.PreKeyRecord, signedPreKey axolotl.SignedPreKeyRecord, identityKey axolotl.IdentityKeyPair) (*axolotl.PreKeyBundle, error) {
 	pkb, err := axolotl.NewPreKeyBundle(
-		d.RegistrationID, d.DeviceID, d.PreKey.ID,
-		axolotl.NewECPublicKey(decPK), int32(d.SignedPreKey.ID), axolotl.NewECPublicKey(decSPK),
-		decSig, axolotl.NewIdentityKey(decIK))
+		0, randUint32(), *preKey.Pkrs.Id,
+		axolotl.NewECPublicKey(preKey.Pkrs.PublicKey),
+		int32(*signedPreKey.Spkrs.Id), axolotl.NewECPublicKey(signedPreKey.Spkrs.PublicKey),
+		signedPreKey.Spkrs.Signature, axolotl.NewIdentityKey(identityKey.PublicKey.Serialize()[1:]))
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +78,7 @@ func makePreKeyBundle(pkr *preKeyResponse) (*axolotl.PreKeyBundle, error) {
 	return pkb, nil
 }
 
-func (c *Client) BuildMessage(plaintext string, recipient string, pkr *preKeyResponse) ([]byte, error) {
+func (c *Client) BuildMessage(plaintext string, recipient string, pkb *axolotl.PreKeyBundle) ([]byte, error) {
 	msg := &OutgoingMessage{
 		Recipient: recipient,
 		Msg: plaintext,
@@ -119,10 +91,6 @@ func (c *Client) BuildMessage(plaintext string, recipient string, pkr *preKeyRes
 	recid := msg.Recipient
 
 	if !c.Store.ContainsSession(recid, c.DeviceID) {
-		pkb, err := makePreKeyBundle(pkr)
-		if err != nil {
-			return nil, err
-		}
 		sb := axolotl.NewSessionBuilder(c.Store, c.Store, c.Store, c.Store, recid, c.DeviceID)
 		err = sb.BuildSenderSession(pkb)
 		if err != nil {

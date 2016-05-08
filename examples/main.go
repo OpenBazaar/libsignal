@@ -10,14 +10,22 @@ func main() {
 	alice, _ := libsignal.NewClient("./alice/", "")
 	bob, _ := libsignal.NewClient("./bob/", "")
 
-	// Build encrypted message from Alice to Bob
-	sk, _ := bob.Store.LoadSignedPreKey(2099347)
-	pk, _ := bob.Store.LoadPreKey(335143)
+	// Build an encrypted message from Alice to Bob.
+	// To start the secession we have to pass in Bob's signed prekey, one of his unsigned prekeys,
+	// and his identity key. For this example we will just load them from Bob's directory. In
+	// production Alice will need to fetch these keys from somewhere else. Also keep in mind, the files
+	// we are loading here contain Bob's private keys, which means Bob should not share these files
+	// with Alice without first removing the private keys.
+	pk, _ := bob.Store.LoadRandomPreKey()
 	id, _ := bob.Store.GetIdentityKeyPair()
-	idser := id.PublicKey.Serialize()
-	r := libsignal.MakePrekeyResponse(idser, sk, pk)
-	m, _ := alice.BuildMessage("hello world", "bob", &r)
+	sk := bob.Store.LoadSignedPreKeys()[0]
+	pkb, _ := libsignal.MakePreKeyBundle(pk, sk, *id)
 
-	decryptedMessage, _ := bob.HandleReceivedMessage(m)
+	// Create the ciphertext. If this were any message other than the first, the prekey bundle
+	// can be nil.
+	ciphertext, _ := alice.BuildMessage("hello world", "bob", pkb)
+
+	// Bob decrypts message
+	decryptedMessage, _ := bob.HandleReceivedMessage(ciphertext)
 	fmt.Println(decryptedMessage)
 }

@@ -150,31 +150,3 @@ func loadPreKeys() error {
 	})
 	return err
 }
-
-func MakePrekeyResponse(identityKey []byte, signedPrekey *axolotl.SignedPreKeyRecord, prekey *axolotl.PreKeyRecord) preKeyResponse {
-	spke := signedPreKeyEntity{
-		ID: *signedPrekey.Spkrs.Id,
-		PublicKey: base64EncWithoutPadding(signedPrekey.Spkrs.PublicKey),
-		Signature: base64EncWithoutPadding(signedPrekey.Spkrs.Signature),
-	}
-
-	pke := preKeyEntity{
-		ID: *prekey.Pkrs.Id,
-		PublicKey: base64EncWithoutPadding(prekey.Pkrs.PublicKey),
-	}
-
-	pkri := preKeyResponseItem{
-		DeviceID: 5,
-		RegistrationID: 4,
-		SignedPreKey: &spke,
-		PreKey: &pke,
-	}
-
-	pkr := preKeyResponse{
-		IdentityKey: base64EncWithoutPadding(identityKey),
-		Devices: []preKeyResponseItem{pkri,},
-
-	}
-
-	return pkr
-}
