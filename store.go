@@ -11,12 +11,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/janimo/textsecure/axolotl"
 	"golang.org/x/crypto/pbkdf2"
 
 	log "github.com/Sirupsen/logrus"
 	"math/rand"
+	"github.com/OpenBazaar/libsignal/ratchet"
 )
 
 // store implements the PreKeyStore, SignedPreKeyStore,
@@ -184,7 +183,7 @@ func (s *store) SetLocalRegistrationID(id uint32) {
 	s.writeNumToFile(regidfile, id)
 }
 
-func (s *store) GetIdentityKeyPair() (*axolotl.IdentityKeyPair, error) {
+func (s *store) GetIdentityKeyPair() (*ratchet.IdentityKeyPair, error) {
 	idkeyfile := filepath.Join(s.identityDir, "identity_key")
 	b, err := s.readFile(idkeyfile)
 	if err != nil {
@@ -193,10 +192,10 @@ func (s *store) GetIdentityKeyPair() (*axolotl.IdentityKeyPair, error) {
 	if len(b) != 64 {
 		return nil, fmt.Errorf("identity key is %d not 64 bytes long", len(b))
 	}
-	return axolotl.NewIdentityKeyPairFromKeys(b[32:], b[:32]), nil
+	return ratchet.NewIdentityKeyPairFromKeys(b[32:], b[:32]), nil
 }
 
-func (s *store) SetIdentityKeyPair(ikp *axolotl.IdentityKeyPair) error {
+func (s *store) SetIdentityKeyPair(ikp *ratchet.IdentityKeyPair) error {
 	idkeyfile := filepath.Join(s.identityDir, "identity_key")
 	b := make([]byte, 64)
 	copy(b, ikp.PublicKey.Key()[:])
@@ -204,12 +203,12 @@ func (s *store) SetIdentityKeyPair(ikp *axolotl.IdentityKeyPair) error {
 	return s.writeFile(idkeyfile, b)
 }
 
-func (s *store) SaveIdentity(id string, key *axolotl.IdentityKey) error {
+func (s *store) SaveIdentity(id string, key *ratchet.IdentityKey) error {
 	idkeyfile := filepath.Join(s.identityDir, "remote_"+id)
 	return s.writeFile(idkeyfile, key.Key()[:])
 }
 
-func (s *store) IsTrustedIdentity(id string, key *axolotl.IdentityKey) bool {
+func (s *store) IsTrustedIdentity(id string, key *ratchet.IdentityKey) bool {
 	if s.AlwaysTrustPeerID {
 		// Workaround until we handle peer reregistering situations
 		// more securely and with a better UI.
@@ -265,13 +264,13 @@ func (s *store) signedPreKeysFilePath(id uint32) string {
 	return filepath.Join(s.signedPreKeysDir, idToFilename(id))
 }
 
-func (s *store) LoadPreKey(id uint32) (*axolotl.PreKeyRecord, error) {
+func (s *store) LoadPreKey(id uint32) (*ratchet.PreKeyRecord, error) {
 	b, err := s.readFile(s.preKeysFilePath(id))
 	if err != nil {
 		return nil, err
 	}
 
-	record, err := axolotl.LoadPreKeyRecord(b)
+	record, err := ratchet.LoadPreKeyRecord(b)
 	if err != nil {
 		return nil, err
 	}
@@ -279,13 +278,13 @@ func (s *store) LoadPreKey(id uint32) (*axolotl.PreKeyRecord, error) {
 	return record, nil
 }
 
-func (s *store) LoadSignedPreKey(id uint32) (*axolotl.SignedPreKeyRecord, error) {
+func (s *store) LoadSignedPreKey(id uint32) (*ratchet.SignedPreKeyRecord, error) {
 	b, err := s.readFile(s.signedPreKeysFilePath(id))
 	if err != nil {
 		return nil, err
 	}
 
-	record, err := axolotl.LoadSignedPreKeyRecord(b)
+	record, err := ratchet.LoadSignedPreKeyRecord(b)
 	if err != nil {
 		return nil, err
 	}
@@ -293,8 +292,8 @@ func (s *store) LoadSignedPreKey(id uint32) (*axolotl.SignedPreKeyRecord, error)
 	return record, nil
 }
 
-func (s *store) LoadSignedPreKeys() []axolotl.SignedPreKeyRecord {
-	keys := []axolotl.SignedPreKeyRecord{}
+func (s *store) LoadSignedPreKeys() []ratchet.SignedPreKeyRecord {
+	keys := []ratchet.SignedPreKeyRecord{}
 	err := filepath.Walk(s.signedPreKeysDir, func(path string, fi os.FileInfo, err error) error {
 		if !fi.IsDir() {
 			_, fname := filepath.Split(path)
@@ -315,8 +314,8 @@ func (s *store) LoadSignedPreKeys() []axolotl.SignedPreKeyRecord {
 	return keys
 }
 
-func (s *store) LoadRandomPreKey() (axolotl.PreKeyRecord, error) {
-	keys := []axolotl.PreKeyRecord{}
+func (s *store) LoadRandomPreKey() (ratchet.PreKeyRecord, error) {
+	keys := []ratchet.PreKeyRecord{}
 	err := filepath.Walk(s.preKeysDir, func(path string, fi os.FileInfo, err error) error {
 		if !fi.IsDir() {
 			_, fname := filepath.Split(path)
@@ -332,13 +331,13 @@ func (s *store) LoadRandomPreKey() (axolotl.PreKeyRecord, error) {
 
 	})
 	if err != nil {
-		return axolotl.PreKeyRecord{}, err
+		return ratchet.PreKeyRecord{}, err
 	}
 	i := rand.Intn(len(keys))
 	return keys[i], nil
 }
 
-func (s *store) StorePreKey(id uint32, record *axolotl.PreKeyRecord) error {
+func (s *store) StorePreKey(id uint32, record *ratchet.PreKeyRecord) error {
 	b, err := record.Serialize()
 	if err != nil {
 		return err
@@ -346,7 +345,7 @@ func (s *store) StorePreKey(id uint32, record *axolotl.PreKeyRecord) error {
 	return s.writeFile(s.preKeysFilePath(id), b)
 }
 
-func (s *store) StoreSignedPreKey(id uint32, record *axolotl.SignedPreKeyRecord) error {
+func (s *store) StoreSignedPreKey(id uint32, record *ratchet.SignedPreKeyRecord) error {
 	b, err := record.Serialize()
 	if err != nil {
 		return err
@@ -437,7 +436,7 @@ func (s *store) GetSessions() []uint32 {
 			if err != nil {
 				return err
 			}
-			record, err := axolotl.LoadSessionRecord(b)
+			record, err := ratchet.LoadSessionRecord(b)
 			if err != nil {
 				return err
 			}
@@ -449,13 +448,28 @@ func (s *store) GetSessions() []uint32 {
 	return sessions
 }
 
-func (s *store) LoadSession(recipientID string, deviceID uint32) (*axolotl.SessionRecord, error) {
+func (s *store) GetSessionRecipients() []string {
+	sessions := []string{}
+
+	filepath.Walk(s.sessionsDir, func(path string, fi os.FileInfo, err error) error {
+		if !fi.IsDir() {
+			id, _ := filepath.Split(path)
+			sessions = append(sessions, id)
+
+		}
+		return nil
+	})
+	return sessions
+}
+
+
+func (s *store) LoadSession(recipientID string, deviceID uint32) (*ratchet.SessionRecord, error) {
 	sfile := s.sessionFilePath(recipientID, deviceID)
 	b, err := s.readFile(sfile)
 	if err != nil {
-		return axolotl.NewSessionRecord(), nil
+		return ratchet.NewSessionRecord(), nil
 	}
-	record, err := axolotl.LoadSessionRecord(b)
+	record, err := ratchet.LoadSessionRecord(b)
 	if err != nil {
 		return nil, err
 	}
@@ -463,7 +477,7 @@ func (s *store) LoadSession(recipientID string, deviceID uint32) (*axolotl.Sessi
 	return record, nil
 }
 
-func (s *store) StoreSession(recipientID string, deviceID uint32, record *axolotl.SessionRecord) error {
+func (s *store) StoreSession(recipientID string, deviceID uint32, record *ratchet.SessionRecord) error {
 	sfile := s.sessionFilePath(recipientID, deviceID)
 	b, err := record.Serialize()
 	if err != nil {

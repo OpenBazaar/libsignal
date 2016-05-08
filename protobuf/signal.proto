@@ -1,0 +1,29 @@
+syntax = "proto3";
+package libsignal;
+
+
+message Envelope {
+  enum Type {
+    UNKNOWN       = 0;
+    CIPHERTEXT    = 1;
+    KEY_EXCHANGE  = 2;
+    PREKEY_BUNDLE = 3;
+    RECEIPT       = 5;
+  }
+
+  Type   type          = 1;
+  bytes  dataMessage   = 2; // Contains an encrypted DataMessage
+}
+
+message DataMessage {
+  enum Flags {
+    UNKNOWN     = 0;
+    END_SESSION = 1;
+  }
+
+  string             body        = 1;
+  string             senderID    = 2;
+  uint64             timestamp   = 3;
+  uint32             flags       = 4;
+}
+

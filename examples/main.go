@@ -21,11 +21,10 @@ func main() {
 	sk := bob.Store.LoadSignedPreKeys()[0]
 	pkb, _ := libsignal.MakePreKeyBundle(pk, sk, *id)
 
-	// Create the ciphertext. If this were any message other than the first, the prekey bundle
-	// can be nil.
-	ciphertext, _ := alice.BuildMessage("hello world", "bob", pkb)
+	// Create the ciphertext.
+	ciphertext1, _ := alice.BuildMessage("hello world", "bob", pkb)
 
-	// Bob decrypts message
-	decryptedMessage, _ := bob.HandleReceivedMessage(ciphertext)
-	fmt.Println(decryptedMessage)
+	// Bob decrypts messages
+	decryptedMessage1, _ := bob.HandleReceivedMessage(ciphertext1)
+	fmt.Println(decryptedMessage1)
 }

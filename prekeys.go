@@ -4,8 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"github.com/janimo/textsecure/axolotl"
 	"github.com/janimo/textsecure/curve25519sign"
+	"github.com/OpenBazaar/libsignal/ratchet"
 )
 
 type preKeyResponseItem struct {
@@ -44,14 +44,14 @@ func randID() uint32 {
 	return randUint32() & 0xffffff
 }
 
-func generatepreKeyEntity(record *axolotl.PreKeyRecord) *preKeyEntity {
+func generatepreKeyEntity(record *ratchet.PreKeyRecord) *preKeyEntity {
 	entity := &preKeyEntity{}
 	entity.ID = *record.Pkrs.Id
 	entity.PublicKey = encodeKey(record.Pkrs.PublicKey)
 	return entity
 }
 
-func generateSignedPreKeyEntity(record *axolotl.SignedPreKeyRecord) *signedPreKeyEntity {
+func generateSignedPreKeyEntity(record *ratchet.SignedPreKeyRecord) *signedPreKeyEntity {
 	entity := &signedPreKeyEntity{}
 	entity.ID = *record.Spkrs.Id
 	entity.PublicKey = encodeKey(record.Spkrs.PublicKey)
@@ -59,16 +59,16 @@ func generateSignedPreKeyEntity(record *axolotl.SignedPreKeyRecord) *signedPreKe
 	return entity
 }
 
-var preKeyRecords []*axolotl.PreKeyRecord
+var preKeyRecords []*ratchet.PreKeyRecord
 
 func generatePreKey(id uint32) error {
-	kp := axolotl.NewECKeyPair()
-	record := axolotl.NewPreKeyRecord(id, kp)
+	kp := ratchet.NewECKeyPair()
+	record := ratchet.NewPreKeyRecord(id, kp)
 	err := textSecureStore.StorePreKey(id, record)
 	return err
 }
 
-var signedKey *axolotl.SignedPreKeyRecord
+var signedKey *ratchet.SignedPreKeyRecord
 
 var lastResortPreKeyID uint32 = 0xFFFFFF
 
@@ -102,14 +102,14 @@ func getNextSignedPreKeyID() uint32 {
 	return randID()
 }
 
-func generateSignedPreKey() *axolotl.SignedPreKeyRecord {
-	kp := axolotl.NewECKeyPair()
+func generateSignedPreKey() *ratchet.SignedPreKeyRecord {
+	kp := ratchet.NewECKeyPair()
 	id := getNextSignedPreKeyID()
 	var random [64]byte
 	randBytes(random[:])
 	priv := identityKey.PrivateKey.Key()
 	signature := curve25519sign.Sign(priv, kp.PublicKey.Serialize(), random)
-	record := axolotl.NewSignedPreKeyRecord(id, uint64(time.Now().UnixNano()*1000), kp, signature[:])
+	record := ratchet.NewSignedPreKeyRecord(id, uint64(time.Now().UnixNano()*1000), kp, signature[:])
 	textSecureStore.StoreSignedPreKey(id, record)
 	return record
 }
@@ -132,11 +132,11 @@ func generatePreKeyState() error {
 }
 
 func loadPreKeys() error {
-	preKeyRecords = []*axolotl.PreKeyRecord{}
+	preKeyRecords = []*ratchet.PreKeyRecord{}
 	count := 0
 	err := filepath.Walk(textSecureStore.preKeysDir, func(path string, fi os.FileInfo, err error) error {
 		if !fi.IsDir() {
-			preKeyRecords = append(preKeyRecords, &axolotl.PreKeyRecord{})
+			preKeyRecords = append(preKeyRecords, &ratchet.PreKeyRecord{})
 			_, fname := filepath.Split(path)
 			id, err := filenameToID(fname)
 			if err != nil {
